@@ -29,7 +29,7 @@ const float p0 = 101325;     // Pressure at sea level (Pa)
 float altitude;
 
 int LDR = A3;
-int lightValue = 0;
+int luminosity = 0;
 
 #include <LiquidCrystal.h>
 
@@ -39,44 +39,60 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 void setup()
 {
   Serial.begin(9600);
+  lcd.begin(16, 2);
+  lcd.clear();
   Wire.begin();
   bmp085Calibration();
-  pinMode(LDR, INPUT);       // declare the LDR as an INPUT
-    // set up the LCD's number of columns and rows: 
-  lcd.begin(16, 2);
-  // Print a message to the LCD.
-  lcd.print("hello, world!");
+  pinMode(LDR, INPUT);
 }
 
 void loop()
 {
-  temperature = bmp085GetTemperature(bmp085ReadUT());
-  pressure = bmp085GetPressure(bmp085ReadUP());
-  altitude = (float)44330 * (1 - pow(((float) pressure/p0), 0.190295));
-  lightValue = analogRead(LDR);
-  lightValue=map(lightValue,0,900,100,0);
-
+  temperature = bmp085GetTemperature(bmp085ReadUT())/10;
   Serial.print("Temperature: ");
   Serial.print(temperature, DEC);
-  Serial.println(" *0.1 deg C");
+  Serial.println(" C");
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Temperature (C):");
+  lcd.setCursor(0, 1);
+  lcd.print(temperature);
+  delay(2000);
+  
+  pressure = bmp085GetPressure(bmp085ReadUP());
   Serial.print("Pressure: ");
   Serial.print(pressure, DEC);
   Serial.println(" Pa");
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Pressure (Pa):");
+  lcd.setCursor(0, 1);
+  lcd.print(pressure);
+  delay(2000);
+  
+  altitude = (float)44330 * (1 - pow(((float) pressure/p0), 0.190295));
   Serial.print("Altitude: ");
   Serial.print(altitude, 2);
   Serial.println(" m");
-  Serial.print("Luminosity: ");
-  Serial.print(lightValue);
-  Serial.println(" %");
-  Serial.println();
-  
-    // set the cursor to column 0, line 1
-  // (note: line 1 is the second row, since counting begins with 0):
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Altitude (m):");
   lcd.setCursor(0, 1);
-  // print the number of seconds since reset:
-  lcd.print(millis()/1000);
+  lcd.print(altitude);
+  delay(2000);
   
-  delay(1000);
+  luminosity=map(analogRead(LDR),0,1023,100,0);
+  Serial.print("Luminosity: ");
+  Serial.print(luminosity);
+  Serial.println(" %");
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Luminosity (%):");
+  lcd.setCursor(0, 1);
+  lcd.print(luminosity);
+  delay(2000);
+  
+  Serial.println();
 }
 
 // Stores all of the bmp085's calibration values into global variables
