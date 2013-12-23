@@ -1,5 +1,7 @@
+#include <DHT11.h>
 #include <Wire.h>
-#include <dht11.h>
+#include <SoftwareSerial.h>
+#include <LiquidCrystal.h>
 
 #define BMP085_ADDRESS 0x77  // I2C address of BMP085
 
@@ -42,13 +44,13 @@ float humidity = 0;
 int NPIN = A1;
 int noise = 0;
 
-dht11 DHT11;
 #define DHT11PIN A2
+DHT11 dht11(DHT11PIN);
 
-#include <LiquidCrystal.h>
 
-// initialize the library with the numbers of the interface pins
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+
+int speed;
 
 void setup()
 {
@@ -60,10 +62,26 @@ void setup()
   pinMode(LDR, INPUT);
   pinMode(DHT11PIN, INPUT);
   pinMode(NPIN, INPUT);
+  speed = 5000;
 }
 
 void loop()
 {
+  showTemperature();
+  delay(speed); 
+  showPressure();
+  delay(speed); 
+  showAltitude();
+  delay(speed); 
+  showLuminosity();
+  delay(speed); 
+  showHumidity();
+  delay(speed); 
+  showNoise();
+  delay(speed); 
+}
+
+void showTemperature(){
   temperature = bmp085GetTemperature(bmp085ReadUT())/10;
   Serial.print("Temperature: ");
   Serial.print(temperature, DEC);
@@ -73,9 +91,10 @@ void loop()
   lcd.print("Temperature (C):");
   lcd.setCursor(0, 1);
   lcd.print(temperature);
-  delay(2000);
-  
-  pressure = bmp085GetPressure(bmp085ReadUP());
+}
+
+void showPressure(){
+    pressure = bmp085GetPressure(bmp085ReadUP());
   Serial.print("Pressure: ");
   Serial.print(pressure/100, DEC);
   Serial.println(" hPa");
@@ -84,9 +103,10 @@ void loop()
   lcd.print("Pressure (hPa):");
   lcd.setCursor(0, 1);
   lcd.print(pressure/100);
-  delay(2000);
-  
-  altitude = (float)44330 * (1 - pow(((float) pressure/p0), 0.190295));
+}
+
+void showAltitude(){
+    altitude = (float)44330 * (1 - pow(((float) pressure/p0), 0.190295));
   Serial.print("Altitude: ");
   Serial.print(altitude, 2);
   Serial.println(" m");
@@ -95,8 +115,9 @@ void loop()
   lcd.print("Altitude (m):");
   lcd.setCursor(0, 1);
   lcd.print(altitude);
-  delay(2000);
-  
+}
+
+void showLuminosity(){
   luminosity=map(analogRead(LDR),0,1023,100,0);
   Serial.print("Luminosity: ");
   Serial.print(luminosity);
@@ -106,25 +127,11 @@ void loop()
   lcd.print("Luminosity (%):");
   lcd.setCursor(0, 1);
   lcd.print(luminosity);
-  delay(2000);
-  
-  int chk = DHT11.read(DHT11PIN);
-  switch (chk)
-  {
-    case DHTLIB_OK: 
-                //Serial.println("OK"); 
-                break;
-    case DHTLIB_ERROR_CHECKSUM: 
-                //Serial.println("Checksum error"); 
-                break;
-    case DHTLIB_ERROR_TIMEOUT: 
-                //Serial.println("Time out error"); 
-                break;
-    default: 
-                //Serial.println("Unknown error"); 
-                break;
-  }
-  humidity = (float)DHT11.humidity;
+}
+
+void showHumidity(){
+  float temp;
+  int chk = dht11.read(humidity,temp);
   Serial.print("Humidity: ");
   Serial.print(humidity);
   Serial.println(" %");
@@ -133,9 +140,10 @@ void loop()
   lcd.print("Humidity (%):");
   lcd.setCursor(0, 1);
   lcd.print(humidity);
-  delay(2000);
-  
-  noise=map(analogRead(NPIN),0,1023,0,100);
+}
+
+void showNoise(){
+   noise=map(analogRead(NPIN),0,1023,0,100);
   Serial.print("Noise: ");
   Serial.print(noise);
   Serial.println(" %");
@@ -144,9 +152,6 @@ void loop()
   lcd.print("Noise (%):");
   lcd.setCursor(0, 1);
   lcd.print(noise);
-  delay(2000);
-  
-  Serial.println();
 }
 
 // Stores all of the bmp085's calibration values into global variables
