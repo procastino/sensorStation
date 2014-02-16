@@ -1,15 +1,12 @@
-#include <DHT11.h>
 #include <Wire.h>
 #include <SoftwareSerial.h>
-#include <LiquidCrystal.h>
+#include <dht.h>
+
+dht DHT;
 
 #define BMP085_ADDRESS 0x77  // I2C address of BMP085
 
-#define DHTLIB_OK 0
-#define DHTLIB_ERROR_CHECKSUM -1
-#define DHTLIB_ERROR_TIMEOUT -2
-
-const unsigned char OSS = 0;  // Oversampling Setting
+const unsigned char OSS = 0;  // Oversampling Setting NON SEI QUE FAI ISTO
 
 // Calibration values
 int ac1;
@@ -31,38 +28,21 @@ long b5;
 short temperature;
 long pressure;
 
-// Use these for altitude conversions
-const float p0 = 101325;     // Pressure at sea level (Pa)
-float altitude;
-
 int LDR = A3;
 int luminosity = 0;
-
-//int HPIN = A2;
-float humidity = 0;
-
-int NPIN = A1;
-int noise = 0;
-
-#define DHT11PIN A2
-DHT11 dht11(DHT11PIN);
-
-
-LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
-
+int DHT22_PIN=6;
 int speed;
 
 void setup()
 {
   Serial.begin(9600);
-  lcd.begin(16, 2);
-  lcd.clear();
   Wire.begin();
   bmp085Calibration();
+ 
   pinMode(LDR, INPUT);
-  pinMode(DHT11PIN, INPUT);
-  pinMode(NPIN, INPUT);
-  speed = 5000;
+  pinMode(DHT22_PIN, INPUT);
+  speed = 4000;
+  Serial.println("Sensores listos");
 }
 
 void loop()
@@ -71,88 +51,44 @@ void loop()
   delay(speed); 
   showPressure();
   delay(speed); 
-  showAltitude();
-  delay(speed); 
   showLuminosity();
   delay(speed); 
   showHumidity();
   delay(speed); 
-  showNoise();
-  delay(speed); 
-}
+  }
 
 void showTemperature(){
   temperature = bmp085GetTemperature(bmp085ReadUT())/10;
   Serial.print("Temperature: ");
   Serial.print(temperature, DEC);
   Serial.println(" C");
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Temperature (C):");
-  lcd.setCursor(0, 1);
-  lcd.print(temperature);
-}
+  }
 
 void showPressure(){
     pressure = bmp085GetPressure(bmp085ReadUP());
   Serial.print("Pressure: ");
   Serial.print(pressure/100, DEC);
   Serial.println(" hPa");
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Pressure (hPa):");
-  lcd.setCursor(0, 1);
-  lcd.print(pressure/100);
-}
-
-void showAltitude(){
-    altitude = (float)44330 * (1 - pow(((float) pressure/p0), 0.190295));
-  Serial.print("Altitude: ");
-  Serial.print(altitude, 2);
-  Serial.println(" m");
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Altitude (m):");
-  lcd.setCursor(0, 1);
-  lcd.print(altitude);
-}
+  }
 
 void showLuminosity(){
-  luminosity=map(analogRead(LDR),0,1023,100,0);
+  luminosity=map(analogRead(LDR),6,750,0,100);
+  Serial.print("analogRead");
+  Serial.println(analogRead(LDR));
   Serial.print("Luminosity: ");
   Serial.print(luminosity);
   Serial.println(" %");
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Luminosity (%):");
-  lcd.setCursor(0, 1);
-  lcd.print(luminosity);
-}
+  }
 
 void showHumidity(){
   float temp;
-  int chk = dht11.read(humidity,temp);
+  DHT.read22(DHT22_PIN);
   Serial.print("Humidity: ");
-  Serial.print(humidity);
+  Serial.print(DHT.humidity);
   Serial.println(" %");
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Humidity (%):");
-  lcd.setCursor(0, 1);
-  lcd.print(humidity);
-}
+  }
 
-void showNoise(){
-   noise=map(analogRead(NPIN),0,1023,0,100);
-  Serial.print("Noise: ");
-  Serial.print(noise);
-  Serial.println(" %");
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Noise (%):");
-  lcd.setCursor(0, 1);
-  lcd.print(noise);
-}
+
 
 // Stores all of the bmp085's calibration values into global variables
 // Calibration values are required to calculate temp and pressure
@@ -328,40 +264,6 @@ double Fahrenheit(double celsius)
 double Kelvin(double celsius)
 {
         return celsius + 273.15;
-}
-
-// dewPoint function NOAA
-// reference (1) : http://wahiduddin.net/calc/density_algorithms.htm
-// reference (2) : http://www.colorado.edu/geography/weather_station/Geog_site/about.htm
-//
-double dewPoint(double celsius, double humidity)
-{
-        // (1) Saturation Vapor Pressure = ESGG(T)
-        double RATIO = 373.15 / (273.15 + celsius);
-        double RHS = -7.90298 * (RATIO - 1);
-        RHS += 5.02808 * log10(RATIO);
-        RHS += -1.3816e-7 * (pow(10, (11.344 * (1 - 1/RATIO ))) - 1) ;
-        RHS += 8.1328e-3 * (pow(10, (-3.49149 * (RATIO - 1))) - 1) ;
-        RHS += log10(1013.246);
-
-        // factor -3 is to adjust units - Vapor Pressure SVP * humidity
-        double VP = pow(10, RHS - 3) * humidity;
-
-        // (2) DEWPOINT = F(Vapor Pressure)
-        double T = log(VP/0.61078);   // temp var
-        return (241.88 * T) / (17.558 - T);
-}
-
-// delta max = 0.6544 wrt dewPoint()
-// 6.9 x faster than dewPoint()
-// reference: http://en.wikipedia.org/wiki/Dew_point
-double dewPointFast(double celsius, double humidity)
-{
-        double a = 17.271;
-        double b = 237.7;
-        double temp = (a * celsius) / (b + celsius) + log(humidity*0.01);
-        double Td = (b * temp) / (a - temp);
-        return Td;
 }
 
 
