@@ -73,8 +73,6 @@ void showPressure(){
 
 void showLuminosity(){
   luminosity=map(analogRead(LDR),6,750,0,100);
-  Serial.print("analogRead");
-  Serial.println(analogRead(LDR));
   Serial.print("Luminosity: ");
   Serial.print(luminosity);
   Serial.println(" %");
